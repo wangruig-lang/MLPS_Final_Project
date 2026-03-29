@@ -3,6 +3,7 @@ pandas
 xarray
 netCDF4
 matplotlib
-torch
 statsmodels
 tqdm
+wandb
+python-dotenv
