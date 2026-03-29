@@ -41,21 +41,23 @@ cd MLPS_Final_Project
 我们使用 wandb 来统一记录实验日志，方便团队成员之间对比不同 run 的结果。
 
 1. **注册/登录 wandb 账号**：前往 https://wandb.ai 注册或登录
-2. **获取 API Key**：登录后在 https://wandb.ai/authorize 页面复制你的 API Key
-3. **创建 `.env` 文件**：
+2. **创建或加入一个 Team**：wandb 要求使用 team entity 来记录 run。在 wandb 上创建一个 team（或让队长创建后邀请你加入），记住 team 名称
+3. **获取 API Key**：登录后在 https://wandb.ai/authorize 页面复制你的 API Key
+4. **创建 `.env` 文件**：
 
    ```bash
    cp .env.example .env
    ```
 
-4. **编辑 `.env` 文件**，填入你自己的信息：
+5. **编辑 `.env` 文件**，填入你自己的信息：
 
    ```
    WANDB_USERNAME=你的wandb用户名
    WANDB_API_KEY=你的wandb_api_key
+   WANDB_ENTITY=你的team名称
    ```
 
-> **注意**：`.env` 文件已被 `.gitignore` 忽略，不会被提交到 git，所以你的 API Key 是安全的。每个团队成员都需要各自创建自己的 `.env` 文件。
+> **注意**：`.env` 文件已被 `.gitignore` 忽略，不会被提交到 git，所以你的 API Key 是安全的。每个团队成员都需要各自创建自己的 `.env` 文件。所有团队成员的 `WANDB_ENTITY` 应填相同的 team 名称，这样所有 run 会汇总到同一个 project 下。
 
 ### 第四步：安装依赖并运行 notebook
 
