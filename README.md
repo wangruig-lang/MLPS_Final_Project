@@ -114,6 +114,15 @@ Runtime → Change runtime type → **T4 GPU** → Save
 
 > Colab 自带 PyTorch + GPU，训练速度比本地 CPU 快 5-10 倍。
 
+**如何获取最新代码（Colab 上更新 notebook）**
+
+Colab 从 GitHub 打开的是**只读快照**，不会自动同步。当队友 push 了新代码后：
+
+- **最简单**：重新点上面的 Colab 链接，每次打开都会加载 GitHub 上最新的 main 分支
+- 不需要手动 `git pull`，也不需要重新配置（`.env` 和 Drive 数据在重新运行 Cell 2 时会自动检测到已有配置并跳过）
+
+> **提示**：如果你在 Colab 上做了修改想保存，先 File → Save a copy in Drive，然后再重新打开 GitHub 版本。
+
 ---
 
 ### 方式二：本地运行
