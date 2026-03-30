@@ -74,36 +74,73 @@ CMU 95-828 Machine Learning for Problem Solving - Spring 2026
 
 4. **输出** → `results/recommended_counties.txt`（提交文件）
 
-## 环境配置（首次使用必读）
+## 环境配置
 
-### 第一步：克隆仓库
+Notebook 支持 **本地运行** 和 **Google Colab 运行** 两种方式，自动检测环境。
+
+---
+
+### 方式一：Google Colab（推荐，有免费 GPU）
+
+最简单的方式，不需要装任何东西。
+
+**第一步：上传训练数据到 Google Drive**
+
+1. 从 Canvas 或共享链接下载 `train.nc`（~152MB）
+2. 打开 Google Drive，创建文件夹 `MLPS_Data`
+3. 将 `train.nc` 上传到 `My Drive/MLPS_Data/train.nc`
+
+**第二步：打开 notebook**
+
+直接点击下面的链接打开：
+
+👉 [在 Colab 中打开 demo.ipynb](https://colab.research.google.com/github/wangruig-lang/MLPS_Final_Project/blob/main/demo.ipynb)
+
+或者手动操作：Colab → File → Open notebook → GitHub tab → 输入 `wangruig-lang/MLPS_Final_Project`
+
+**第三步：选择 GPU**
+
+Runtime → Change runtime type → **T4 GPU** → Save
+
+**第四步：运行第一个代码 cell**
+
+这个 cell 会自动完成所有配置：
+1. 弹出 Google Drive 授权 → 点允许
+2. 自动 clone repo
+3. 在 Drive 里找到 `train.nc` 并链接到 `data/`（自动搜索常见路径，找不到会让你手动输入）
+4. 交互式输入 wandb 信息 → 自动生成 `.env`
+
+**第五步：继续 Run All 即可**
+
+> Colab 自带 PyTorch + GPU，训练速度比本地 CPU 快 5-10 倍。
+
+---
+
+### 方式二：本地运行
+
+**第一步：克隆仓库**
 
 ```bash
-git clone <仓库地址>
+git clone https://github.com/wangruig-lang/MLPS_Final_Project.git
 cd MLPS_Final_Project
 ```
 
-### 第二步：下载训练数据
+**第二步：下载训练数据**
 
-`train.nc` 文件太大无法放在 GitHub 上，需要手动下载：
+从 Canvas 或共享链接下载 `train.nc`，放入 `data/` 目录：`data/train.nc`
 
-1. 从 Canvas 或共享的 Google Drive 下载 `train.nc`
-2. 将文件放入 `data/` 目录下，即 `data/train.nc`
+**第三步：配置 Weights & Biases (wandb)**
 
-### 第三步：配置 Weights & Biases (wandb)
-
-我们使用 wandb 来统一记录实验日志，方便团队成员之间对比不同 run 的结果。
-
-1. **注册/登录 wandb 账号**：前往 https://wandb.ai 注册或登录
-2. **创建或加入一个 Team**：wandb 要求使用 team entity 来记录 run。在 wandb 上创建一个 team（或让队长创建后邀请你加入），记住 team 名称
-3. **获取 API Key**：登录后在 https://wandb.ai/authorize 页面复制你的 API Key
-4. **创建 `.env` 文件**：
+1. 前往 https://wandb.ai 注册或登录
+2. 创建或加入一个 Team（wandb 要求使用 team entity），记住 team 名称
+3. 在 https://wandb.ai/authorize 复制你的 API Key
+4. 创建 `.env` 文件：
 
    ```bash
    cp .env.example .env
    ```
 
-5. **编辑 `.env` 文件**，填入你自己的信息：
+5. 编辑 `.env`，填入你的信息：
 
    ```
    WANDB_USERNAME=你的wandb用户名
@@ -111,16 +148,13 @@ cd MLPS_Final_Project
    WANDB_ENTITY=你的team名称
    ```
 
-> **注意**：`.env` 文件已被 `.gitignore` 忽略，不会被提交到 git，所以你的 API Key 是安全的。每个团队成员都需要各自创建自己的 `.env` 文件。所有团队成员的 `WANDB_ENTITY` 应填相同的 team 名称，这样所有 run 会汇总到同一个 project 下。
+> **注意**：`.env` 已在 `.gitignore` 中，不会被提交。每人各自创建自己的 `.env`，`WANDB_ENTITY` 填相同的 team 名。
 
-### 第四步：安装依赖并运行 notebook
+**第四步：运行 notebook**
 
-打开 `demo.ipynb`，按顺序运行 cell 即可。notebook 的第一个代码 cell 会自动完成以下操作：
-
-- **Conda 用户**：自动通过 conda 安装 `netCDF4` 和 `PyTorch`，再通过 pip 安装其余依赖
-- **非 Conda 用户（如 Colab）**：通过 pip 安装所有依赖，PyTorch 从官方源安装
-
-你不需要手动运行 `pip install`，notebook 会处理一切。
+打开 `demo.ipynb`，按顺序运行。第一个代码 cell 会自动检测本地环境并跳过 Colab 配置，第二个 cell 会自动安装依赖：
+- **Conda 用户**：自动通过 conda 安装 `netCDF4` 和 `PyTorch`，其余用 pip
+- **非 Conda 用户**：全部通过 pip 安装，PyTorch 从官方源获取
 
 ## Wandb 使用说明
 
