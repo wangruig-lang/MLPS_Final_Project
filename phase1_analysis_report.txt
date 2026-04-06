@@ -1,0 +1,261 @@
+====================================================================================================================================
+PHASE 1 EDA NOTEBOOK ANALYSIS REPORT
+File: /Users/gongwangrui/Documents/GitHub/MLPS_Final_Project/phase1_eda.ipynb
+====================================================================================================================================
+
+SUMMARY
+-------
+Total Cells: 45 (20 code cells, 25 markdown cells)
+Status: Generally sound with good variable flow, BUT 3 significant issues found
+
+====================================================================================================================================
+1. COMPLETE CELL LISTING
+====================================================================================================================================
+
+CODE CELLS:
+-----------
+[Cell  1] ID: x4nb0he21tc  | Task: Install & Load Data
+[Cell  4] ID: o9kazndvsa   | Task: A1 - Basic outage statistics
+[Cell  6] ID: 0l7j2fe1h7f  | Task: A2 - GMM-based stratification
+[Cell  8] ID: hhn7utq6bla  | Task: A3 - County analysis
+[Cell 10] ID: x0lrdk8517h  | Task: A4 - Time-based pattern analysis (storm detection)
+[Cell 13] ID: cn5zamkxn5   | Task: B1 - Weather feature correlation
+[Cell 15] ID: uqk8pbpmzta  | Task: B2 - Collinearity analysis & feature deduplication
+[Cell 17] ID: wvggue1sqgb  | Task: B3 - Storm event decomposition
+[Cell 19] ID: biytz1k48bg  | Task: B4 - Missing value check
+[Cell 21] ID: 0shf4f8iboyp | Task: B5 - Multi-method consensus voting
+[Cell 24] ID: hyiu71hh0tn  | Task: C1 - Feature construction function definition
+[Cell 26] ID: pm4dlb5wdbr  | Task: C1.1 - Run feature construction
+[Cell 28] ID: gfg6wgi1ghj  | Task: C2 - Feature quality visualization
+[Cell 30] ID: c3_code      | Task: C3 - Lag & rolling window behavior
+[Cell 32] ID: c4_code      | Task: C4 - Feature collinearity analysis
+[Cell 34] ID: c5_code      | Task: C5 - Feature engineering summary
+[Cell 37] ID: 5epwfxlbx8a  | Task: D1 - Evaluation function
+[Cell 39] ID: fpe85gqxmz   | Task: D2 - Persistence baseline
+[Cell 41] ID: d64ed40f     | Task: D3 - LightGBM model training
+[Cell 43] ID: 2c670b05     | Task: D4 - Model comparison visualization
+
+====================================================================================================================================
+2. KEY VARIABLE FLOW & DEPENDENCIES
+====================================================================================================================================
+
+FROM CELL 1 (Data Loading):
+  ✓ outage (T, L)         → used in: 4, 6, 8, 10, 13, 17, 19, 21, 24, 28, 30, 34, 39, 41, 43
+  ✓ tracked (T, L)        → used in: 8, 19, 24
+  ✓ weather (T, L, F)     → used in: 13, 15, 17, 19, 21, 24, 26, 28, 30, 34, 41
+  ✓ timestamps (T,)       → used in: 8, 10, 17, 24, 26, 39, 41
+  ✓ locations (L,)        → used in: 8, 24, 37, 39, 41, 43
+  ✓ T, L, F              → used throughout notebook
+  ✓ weather_features     → used in: 13, 15, 17, 19, 21, 24, 26, 28, 30, 34, 41
+  ✓ ds (xarray Dataset)   → used in: 26, 39, 41
+
+TASK A OUTPUTS:
+  Cell  6 → gmm_thresholds, regime_names, labels, all_regimes, colors_map
+            Used in: 8, 24, 26, 28, 34, 41 ✓
+  
+  Cell  8 → county_stats (DataFrame with columns: fips, total_outage, mean_outage, max_outage, mean_tracked, nonzero_hours, severe_hours)
+            Used in: 28, 30 ✓
+  
+  Cell 10 → is_storm (boolean array, T), is_quiet (boolean array, T)
+  Cell 10 → storm_starts, storm_ends (lists of indices)
+  Cell 10 → total_outage_by_time (array, T)
+            Used in: 13, 17, 21, 26 ✓
+
+TASK B OUTPUTS:
+  Cell 13 → corr_df (DataFrame), corr_series
+            Used in: 15, 21 ✓
+  
+  Cell 15 → selected_features (list of weather feature names after deduplication)
+            Used in: 17, 21, 26, 41 ✓
+  
+  Cell 21 → final_selected (list of top features from consensus voting)
+            Used in: 26, 41 ✓
+
+TASK C OUTPUTS:
+  Cell 24 → build_features() FUNCTION DEFINITION (219 lines)
+            - Parameters: ds, selected_weather_features, top_weather_features, gmm_thresholds, etc.
+            - Returns: (df DataFrame, feat_groups dict)
+  
+  Cell 26 → df (constructed features DataFrame, T*L rows)
+  Cell 26 → feat_groups (dict mapping feature group names to lists of column names)
+            Used in: 28, 30, 32, 34, 37, 41 ✓
+
+====================================================================================================================================
+3. CRITICAL ISSUES FOUND
+====================================================================================================================================
+
+[CRITICAL] ISSUE #1: Hard-coded data path
+────────────────────────────────────────
+Cell: 1 (ID: x4nb0he21tc)
+Line: DATA_DIR = "data/"
+Code: ds = xr.open_dataset(os.path.join(DATA_DIR, "train.nc"))
+
+Problem:
+  - Notebook assumes data files are in ./data/ directory relative to notebook
+  - Will crash with FileNotFoundError if:
+    • data/ folder is missing
+    • data/ folder is in different location
+    • train.nc file is renamed
+
+Impact: 
+  - CRITICAL: Prevents entire notebook from running
+
+Recommendation:
+  - Use absolute path or relative path resolution
+  - Add error handling with informative message
+  - Example fix:
+    ```python
+    import pathlib
+    notebook_dir = pathlib.Path(__file__).parent
+    DATA_DIR = notebook_dir / "data"
+    if not DATA_DIR.exists():
+        raise FileNotFoundError(f"Data directory not found: {DATA_DIR}")
+    ```
+
+
+[MEDIUM] ISSUE #2: Empty weather_features list could cause crashes
+──────────────────────────────────────────────────────────────────
+Cell: 1 (ID: x4nb0he21tc)
+Line: weather_features = list(ds.feature.values) if 'feature' in ds.dims else []
+
+Problem:
+  - If dataset doesn't have 'feature' dimension, weather_features becomes empty list []
+  - Cells 13, 15, 17, 19, 21 all use weather_features.index(name) which will fail:
+    • Cell 13: weather_features.index(feat_name) for each feature
+    • Cell 15: weather_features.index(n) for each top feature name
+    • Cell 17: weather_features.index(feat) in loop
+
+Impact: 
+  - MEDIUM: Notebook crashes in Task B if weather_features is empty
+  - Error would be: ValueError: 'feature_name' is not in list
+
+Affected Cells: 13, 15, 17, 19, 21
+
+Recommendation:
+  Add validation in Cell 1:
+  ```python
+  weather_features = list(ds.feature.values) if 'feature' in ds.dims else []
+  if len(weather_features) == 0:
+      raise ValueError("Dataset must contain 'feature' dimension with at least one feature")
+  ```
+
+
+[MEDIUM] ISSUE #3: county_stats 'fips' column assumption
+───────────────────────────────────────────────────────
+Cell: 8 (ID: hhn7utq6bla)
+Line: county_stats = pd.DataFrame({'fips': locations, ...})
+
+Cell 30 (ID: c3_code) uses:
+Line: top_county = county_stats.iloc[0]['fips']
+
+Problem:
+  - Cell 8 creates county_stats with 'fips' column = locations list
+  - Cell 30 (C3) assumes this column exists with exact name
+  - If column name changes or is removed, Cell 30 crashes with KeyError
+
+Impact: 
+  - MEDIUM: Cell 30 will crash if county_stats structure changes
+  - Error would be: KeyError: 'fips'
+
+Recommendation:
+  Add validation in Cell 30:
+  ```python
+  if 'fips' not in county_stats.columns:
+      raise KeyError("county_stats must contain 'fips' column")
+  ```
+
+
+====================================================================================================================================
+4. ADDITIONAL FINDINGS
+====================================================================================================================================
+
+POSITIVE:
+  ✓ All core variables properly defined before use in dependency chain
+  ✓ T, L, F extracted correctly from data shapes in Cell 1
+  ✓ storm_starts and storm_ends properly initialized in Cell 10 (empty lists then populated)
+  ✓ build_features() function has defensive None checks for optional parameters
+  ✓ Imports are properly scoped (scipy.stats in B1, sklearn in B2/B5, lightgbm with fallback in D3)
+  ✓ Variable naming is consistent throughout (outage, tracked, weather used uniformly)
+
+WARNINGS:
+  ⚠ Cell 21 sets np.random.seed(42) but earlier cells may have modified random state
+    - Could affect reproducibility if cells run out of order or multiple times
+    - Recommend: Use numpy.random.RandomState(42) or set seed at top of notebook
+
+  ⚠ Cell 26 passes parameters to build_features:
+    - selected_weather_features=selected_features (from Cell 15)
+    - top_weather_features=final_selected[:6] (from Cell 21)
+    - gmm_thresholds=gmm_thresholds (from Cell 6)
+    - All variables properly defined before use ✓
+
+  ⚠ weather_features list operations:
+    - Cells 13, 15, 17, 19, 21 use .index() method assuming weather_features is a list
+    - Works correctly if weather_features is non-empty (which should be true for valid data)
+    - See MEDIUM ISSUE #2 above
+
+
+IMPORT ANALYSIS:
+  Cell  1: os, numpy, pandas, xarray, matplotlib, seaborn, warnings - ✓ Standard
+  Cell  6: sklearn.mixture.GaussianMixture - ✓ Proper local import
+  Cell 13: scipy.stats.spearmanr - ✓ Proper local import
+  Cell 21: sklearn.ensemble.RandomForestRegressor - ✓ Proper local import
+  Cell 41: lightgbm with try/except and pip fallback - ✓ Good error handling
+
+
+====================================================================================================================================
+5. EXECUTION FLOW VALIDATION
+====================================================================================================================================
+
+If notebook is executed sequentially from Cell 1 onwards:
+
+✓ CELL 1:  Loads data → defines outage, tracked, weather, timestamps, locations, T, L, F, weather_features, ds
+✓ CELL 4:  Uses outage from Cell 1 → OK
+✓ CELL 6:  Uses outage, T, L, F from Cell 1 → defines gmm_thresholds, regime_names, labels
+✓ CELL 8:  Uses outage, tracked, timestamps, locations, gmm_thresholds, labels from Cell 1/6 → defines county_stats
+✓ CELL 10: Uses outage, timestamps, T, L from Cell 1 → defines is_storm, is_quiet, storm_starts, storm_ends, total_outage_by_time
+✓ CELL 13: Uses outage, weather, F, weather_features, is_storm, is_quiet from Cell 1/10 → defines corr_df, corr_series
+✓ CELL 15: Uses corr_df, weather, weather_features, F from Cell 1/13 → defines selected_features
+✓ CELL 17: Uses selected_features, outage, timestamps, weather, weather_features, storm_starts, storm_ends, total_outage_by_time from previous → OK
+✓ CELL 19: Uses outage, tracked, weather from Cell 1 → validation only
+✓ CELL 21: Uses outage, weather, weather_features, corr_df, is_storm, is_quiet from previous → defines final_selected
+✓ CELL 24: DEFINES build_features() function - no dependencies on notebook variables except function parameters
+✓ CELL 26: Uses ds, selected_features, final_selected, gmm_thresholds from Cell 1/15/21/6 → CALLS build_features() → defines df, feat_groups
+✓ CELL 28: Uses df, feat_groups, outage from Cell 26/1 → visualization only
+✓ CELL 30: Uses df, county_stats from Cell 26/8 → visualization only
+✓ CELL 32: Uses df, feat_groups from Cell 26 → visualization only
+✓ CELL 34: Uses df, feat_groups from Cell 26 → summary only
+✓ CELL 37: DEFINES evaluate_model() function - no dependencies
+✓ CELL 39: Uses outage, timestamps, locations, T, L from Cell 1 → uses ds from Cell 1 → defines persistence baseline
+✓ CELL 41: Uses df, feat_groups, outage, timestamps, locations from Cell 1/26 → trains LightGBM
+✓ CELL 43: Uses outage, locations from Cell 1 → model comparison visualization
+
+VERDICT: If all CRITICAL issues are resolved and data is available, notebook should execute successfully.
+
+
+====================================================================================================================================
+6. CROSS-CELL VARIABLE DEPENDENCY MATRIX
+====================================================================================================================================
+
+Variable               | Defined | Used In              | Status
+─────────────────────────────────────────────────────────────────────
+outage                 | 1       | 4,6,8,10,13,17,19,21 | ✓ OK
+tracked                | 1       | 8,19,24              | ✓ OK
+weather                | 1       | 13,15,17,19,21,24,26 | ✓ OK
+timestamps             | 1       | 8,10,17,24,39,41     | ✓ OK
+locations              | 1       | 8,24,37,39,41,43     | ✓ OK
+T, L, F                | 1       | All cells            | ✓ OK
+weather_features       | 1       | 13,15,17,19,21       | ✓ OK (with caveat: see ISSUE #2)
+gmm_thresholds         | 6       | 8,24,26,28,34,41     | ✓ OK
+labels                 | 6       | 8,10,13,15,17,21     | ✓ OK
+county_stats           | 8       | 28,30                | ✓ OK (with caveat: see ISSUE #3)
+is_storm, is_quiet     | 10      | 13,21,26             | ✓ OK
+storm_starts, ends     | 10      | 17                   | ✓ OK
+total_outage_by_time   | 10      | 17                   | ✓ OK
+corr_df, corr_series   | 13      | 15,21                | ✓ OK
+selected_features      | 15      | 17,21,26,41          | ✓ OK
+final_selected         | 21      | 26,41                | ✓ OK
+build_features()       | 24      | 26                   | ✓ OK
+df                     | 26      | 28,30,32,34,37,41    | ✓ OK
+feat_groups            | 26      | 28,32,34,41          | ✓ OK
+
+====================================================================================================================================
