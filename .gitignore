@@ -1,3 +1,9 @@
 data/train.nc
 .env
 wandb/
+.DS_Store
+.Rhistory
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+output/
