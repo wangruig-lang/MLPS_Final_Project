@@ -50,7 +50,9 @@ Total outage-hours mitigated over the 48h window (207,034 outage-hours predicted
 | Top-5 counties by population | 107,019 | 51.7% |
 | Random uniform (mean of 200 trials) | 11,909 | 5.8% |
 
-Selected allocation: **two generators to FIPS 26125, two to FIPS 26163, one to FIPS 26139.**
+Selected allocation: **two generators to Oakland (26125), two to Wayne (26163), one to Ottawa (26139)** —
+the two largest Metro Detroit counties, plus one county on the western side of the state that a
+population-ranked plan misses entirely.
 
 <p align="center">
   <img src="results/top10_curves_with_gens.png" width="800" alt="48h forecast curves for the top 10 counties, with generator recipients highlighted">
@@ -138,7 +140,7 @@ recurrent architecture was losing it — most likely because a 48-hour input win
 single hidden state dilutes the dominant 1–6 hour lag signal, and because RNNs respond slowly to the
 sharp onsets that define storms.
 
-**The large-metro effect.** A single county (FIPS 26125) alone accounts for 15–20% of the county-averaged
+**The large-metro effect.** Oakland County (FIPS 26125) alone accounts for 15–20% of the county-averaged
 RMSE. The four largest counties dominate the metric; the remaining 79 average only 40–50 RMSE. Any
 further gain has to come from treating large metros separately.
 
@@ -178,13 +180,13 @@ uniform perturbation of the forecast, one of five picks changes at −10% and tw
 
 Selection frequency across all sensitivity runs:
 
-| FIPS | Frequency | In baseline plan |
-|---|---:|---|
-| 26125 | 187.5% *(frequently allocated two)* | ✅ |
-| 26163 | 177.8% | ✅ |
-| 26139 | 100.0% | ✅ |
-| 26099 | 34.4% | — |
-| 26081 | 0.2% | — |
+| FIPS | County | Frequency | In baseline plan |
+|---|---|---:|---|
+| 26125 | Oakland | 187.5% *(frequently allocated two)* | ✅ |
+| 26163 | Wayne | 177.8% | ✅ |
+| 26139 | Ottawa | 100.0% | ✅ |
+| 26099 | Macomb | 34.4% | — |
+| 26081 | Kent | 0.2% | — |
 
 ---
 

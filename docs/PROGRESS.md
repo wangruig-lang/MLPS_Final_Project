@@ -4,13 +4,19 @@
 **状态**: Phase 1 模型探索 → 切换主力到 HistGBM，准备优化
 **Deadline**: 2026-04-26 23:59
 
+> **勘误（2026-09-02）**：本文件早期版本把 FIPS **26125** 记作 "Detroit"，并把 "Detroit" 与 "Wayne"
+> 当成两个不同的县。按 US Census 2020 县代码，**26125 = Oakland County，26163 = Wayne County**
+> （底特律市位于 Wayne County 内，不存在单独的 "Detroit County"）。
+> 出错的只是人类可读的县名标签；**所有计算用到的 FIPS 码本身自始至终是正确的，因此没有任何数值结果受影响**。
+> 县名已按 Census 口径更正。
+
 ---
 
 ## 0. TL;DR（如果你只想读一段）
 
 - **当前最佳模型: HistGBM + Tier B 特征**，24h RMSE = **92.17**，48h = **80.81**（原始停电数空间，interleaved split）
 - **DeepLSTM 一路从 v2 调到 v9 都跑不过 HistAvg 基线**（最好的 v7 是 113.47，等于 HistAvg），**确认是架构瓶颈不是特征瓶颈**
-- 下一步：超参调优 HistGBM + Detroit 特殊加权 → 目标 <85；然后特征工程 v3 → 目标 <75
+- 下一步：超参调优 HistGBM + 大城市（Oakland/Wayne）特殊加权 → 目标 <85；然后特征工程 v3 → 目标 <75
 - LSTM 和 GNN 的结果全部保留（checkpoint + val pred 在 `results/`），report 里当"探索对比"
 
 ---
@@ -78,7 +84,7 @@ is_val = (days_since_start % stride == 0)
 
 - **Config**: chronological split + log1p target + weighted_mse
 - **结果**: DeepLSTM_24h = 117.83 — **比 Zero=116 还差**
-- **失败原因**: 分布不匹配 + log 空间 expm1 把小误差放大成大误差 + Detroit (26125) 单县 RMSE 压爆
+- **失败原因**: 分布不匹配 + log 空间 expm1 把小误差放大成大误差 + Oakland (26125) 单县 RMSE 压爆
 
 ### 3.3 DeepLSTM v7: rate target + Huber δ=0.01（interleaved split，躺平）
 
@@ -99,7 +105,7 @@ is_val = (days_since_start % stride == 0)
   - DeepLSTM_GNN_24h = 113.04 (仅 **+0.4%**)
   - 81/83 县上 GNN 和 LSTM 几乎打平（都在预测 0）
 - **Per-county 灾区 (24h)**:
-  - 26125 (Detroit): **1807**
+  - 26125 (Oakland): **1807**
   - 26163 (Wayne): 956
   - 26161 (Washtenaw): 934
   - 26051 (Gladwin): 820
@@ -119,7 +125,7 @@ is_val = (days_since_start % stride == 0)
 - **GNN 叠加**:
   - DeepLSTM_GNN_24h = 285.06 (**+21% 比 LSTM 好**)
   - 81/83 县 GNN 帮忙 — 空间信息能削减过预测噪声
-- **Detroit 24h RMSE**: 2326；Wayne 24h: **5397**（比 v7 更差）
+- **Oakland 24h RMSE**: 2326；Wayne 24h: **5397**（比 v7 更差）
 - **诊断**: threshold=0.005 (0.5%) 太低，触发加权的样本远超 30%（日常小停电也触发）；weight=20 在原始空间被 tracked × 660K 放大后爆炸。**从"躺平"矫枉过正到"狂暴"**。
 
 ### 3.5 DeepLSTM v9: rate + weighted_mse, w=3, threshold=0.01（中庸也不行）
@@ -147,7 +153,7 @@ is_val = (days_since_start % stride == 0)
   - HistGBM_24h = **92.17** ← 打败 HistAvg 21 点
   - HistGBM_48h = **80.81** ← 打败 HistAvg 21 点
   - HistGBM_full = 116.87
-- **Per-county 灾区 (24h)**: Detroit 1154, Wayne 1022, Washtenaw 795, Gladwin 682 — **Detroit RMSE 比 LSTM 的 1807 降了 36%**
+- **Per-county 灾区 (24h)**: Oakland 1154, Wayne 1022, Washtenaw 795, Gladwin 682 — **Oakland RMSE 比 LSTM 的 1807 降了 36%**
 - **诊断**: 特征里**有**足够信号，HistGBM 能榨出来，LSTM 榨不出来。**架构问题 > 特征问题**。
 
 ---
@@ -199,13 +205,13 @@ is_val = (days_since_start % stride == 0)
 - w=1 (huber) → 躺平
 - w=3 → val 打平 Zero 基线但原始空间仍比 HistAvg 差
 - w=20 → 过度矫正，狂预测大值
-- **问题本质**: rate 目标把 Detroit 从"绝对值大 10 倍"变成"和别人一样的 0-1 区间"，但 loss 无法告诉模型"**何时**该预测大值"。
+- **问题本质**: rate 目标把 Oakland 从"绝对值大 10 倍"变成"和别人一样的 0-1 区间"，但 loss 无法告诉模型"**何时**该预测大值"。
 
 ### 发现 4: LSTM 的 ValRMSE 地板 ≈ 0.0099
 v7/v8/v9 三个不同 loss 配置下，rate-space ValRMSE 都收敛到 0.0099 ± 0.002。**这是 Tier B 特征 + LSTM 架构能榨出的信号上限**。换 loss 只影响"这个地板映射到原始空间后的表现"，不影响地板本身。
 
-### 发现 5: Detroit 效应支配县均 RMSE
-Detroit (26125) 单县 RMSE 占总 RMSE 的 15-20%。所有模型最差的县都是 Detroit + Wayne + Washtenaw + Gladwin（前 4 城市）。后 79 个小县 RMSE 平均只有 40-50，已经很好。**大城市特殊处理是刚需**。
+### 发现 5: Metro Detroit 效应支配县均 RMSE
+Oakland (26125) 单县 RMSE 占总 RMSE 的 15-20%。所有模型最差的县都是 Oakland + Wayne + Washtenaw（东南密歇根人口密集县）+ Gladwin（中部县）。后 79 个小县 RMSE 平均只有 40-50，已经很好。**大城市特殊处理是刚需**。
 
 ### 发现 6: HistGBM 50 点优势说明架构问题
 相同特征（Tier B），相同 split，HistGBM=92 vs LSTM=143。50 点差距不是特征能解释的 — 是 LSTM 架构把信号损失掉了。
@@ -249,7 +255,7 @@ be3ac1e changed split way        # interleaved split
 
 ### 今天 (周一 4/20)
 - [x] 写这份 PROGRESS.md
-- [ ] §7.5 HistGBM cell 升级: Action 1 超参调优 + Action 3A Detroit 样本加权
+- [ ] §7.5 HistGBM cell 升级: Action 1 超参调优 + Action 3A 大城市样本加权
 - [ ] Colab 跑一次，目标 HistGBM_24h < 85
 
 ### 周二 (4/21): 特征工程 v3
