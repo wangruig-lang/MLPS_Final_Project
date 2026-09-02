@@ -135,7 +135,7 @@ the feature set and architecture, not by the loss. Changing the loss only moved 
 landed in raw space.
 
 `HistGradientBoostingRegressor` on the identical features and split reached **92.17 in four seconds
-of training**, beating the LSTM by roughly 50 RMSE points. The signal was in the features; the
+of training**, beating the best LSTM configuration by 37 RMSE points. The signal was in the features; the
 recurrent architecture was losing it — most likely because a 48-hour input window collapsed into a
 single hidden state dilutes the dominant 1–6 hour lag signal, and because RNNs respond slowly to the
 sharp onsets that define storms.
